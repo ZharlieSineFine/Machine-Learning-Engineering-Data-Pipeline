@@ -1,0 +1,2 @@
+# PySpark (local Spark). Install: python -m pip install -r requirements.txt
+pyspark>=3.5.0,<5
