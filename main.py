@@ -26,8 +26,7 @@ def generate_first_of_month_dates(start_date_str, end_date_str):
     return first_of_month_dates
 
 
-# Widest span across all sources (loan_daily runs latest, to 2025-11).
-# Bronze lands everything available; date windowing/alignment is a GOLD concern.
+
 start_date_str = "2023-01-01"
 end_date_str = "2025-11-01"
 dates_str_lst = generate_first_of_month_dates(start_date_str, end_date_str)
@@ -35,7 +34,7 @@ dates_str_lst = generate_first_of_month_dates(start_date_str, end_date_str)
 bronze_base_directory = "datamart/bronze/"
 os.makedirs(bronze_base_directory, exist_ok=True)
 
-# One read.csv + one cache lifetime per source (not per month).
+# One read.csv + one cache lifetime per source.
 for source_name in bronze.SOURCE_CONFIG:
     bronze.process_bronze_source_all_snapshots(
         source_name, dates_str_lst, bronze_base_directory, spark, bronze.SOURCE_CONFIG
