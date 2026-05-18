@@ -4,8 +4,9 @@ from datetime import datetime
 import pyspark
 
 import utils.data_processing_bronze_table as bronze
+import utils.data_processing_silver_table as silver
 
-# --- Spark session (same pattern as Lab 2) ---
+# --- Spark session ---
 spark = (
     pyspark.sql.SparkSession.builder.appName("dev").master("local[*]").getOrCreate()
 )
@@ -34,8 +35,19 @@ dates_str_lst = generate_first_of_month_dates(start_date_str, end_date_str)
 bronze_base_directory = "datamart/bronze/"
 os.makedirs(bronze_base_directory, exist_ok=True)
 
-# One read.csv + one cache lifetime per source.
+# Process bronze tables
 for source_name in bronze.SOURCE_CONFIG:
     bronze.process_bronze_source_all_snapshots(
         source_name, dates_str_lst, bronze_base_directory, spark, bronze.SOURCE_CONFIG
+    )
+
+
+# Process silver tables
+silver_base_directory = "datamart/silver/"
+os.makedirs(silver_base_directory, exist_ok=True)
+
+for source_name in bronze.SOURCE_CONFIG:
+    silver.process_silver_source_all_snapshots(
+        source_name, dates_str_lst, bronze_base_directory,
+        silver_base_directory, spark, bronze.SOURCE_CONFIG,
     )
