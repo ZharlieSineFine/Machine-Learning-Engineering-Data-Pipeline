@@ -1,2 +1,4 @@
 # PySpark (local Spark). Install: python -m pip install -r requirements.txt
 pyspark>=3.5.0,<5
+# Silver parquet on Windows without HADOOP_HOME/winutils uses pandas + pyarrow.
+pyarrow>=14.0.0

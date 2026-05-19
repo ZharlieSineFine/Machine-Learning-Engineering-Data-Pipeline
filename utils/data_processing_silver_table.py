@@ -1,8 +1,5 @@
 import os
 
-
-from utils.data_processing_bronze_table import SOURCE_CONFIG
-
 from pyspark.sql.functions import (
     col,
     regexp_replace,
@@ -36,13 +33,20 @@ def _read_bronze_partition(
 
 
 def _num(c):
-    """Deterministic numeric clean: drop any char not digit/dot/minus -> Double."""
-    return regexp_replace(col(c), r"[^0-9.-]", "").cast(DoubleType())
+    """Strip non-numeric chars; empty result -> NULL (ANSI Spark rejects ''->Double)."""
+    cleaned = regexp_replace(col(c), r"[^0-9.-]", "")
+    return when(cleaned == lit(""), None).otherwise(cleaned).cast(DoubleType())
 
 
 def _int(c):
-    """Same strip, via Double so '11.0' parses, then Integer."""
-    return regexp_replace(col(c), r"[^0-9.-]", "").cast(DoubleType()).cast(IntegerType())
+    """Same as _num but cast through Double so '11.0' parses, then Integer."""
+    cleaned = regexp_replace(col(c), r"[^0-9.-]", "")
+    return (
+        when(cleaned == lit(""), None)
+        .otherwise(cleaned)
+        .cast(DoubleType())
+        .cast(IntegerType())
+    )
 
 
 def clean_clickstream(df):
@@ -155,7 +159,10 @@ def clean_loan_daily(df):
     df = df.withColumn("mob", col("installment_num").cast(IntegerType()))
     df = df.withColumn(
         "installments_missed",
-        ceil(col("overdue_amt") / col("due_amt")).cast(IntegerType()),
+        when(
+            col("due_amt") != 0,
+            ceil(col("overdue_amt") / col("due_amt")),
+        ).cast(IntegerType()),
     )
     df = df.fillna(0, subset=["installments_missed"])
     df = df.withColumn(
@@ -180,6 +187,25 @@ SILVER_CLEANERS = {
     "financials": clean_financials,
     "loan_daily": clean_loan_daily,
 }
+
+
+def _write_silver_parquet(df, filepath):
+    """
+    Spark's parquet writer uses Hadoop local FS on Windows, which needs HADOOP_HOME +
+    winutils.exe. Without that, fall back to pandas/pyarrow (single file, assignment-sized).
+    Linux / Docker: always Spark write.
+    """
+    if os.name == "nt" and not os.environ.get("HADOOP_HOME"):
+        try:
+            import pyarrow  # noqa: F401
+        except ImportError as exc:
+            raise RuntimeError(
+                "Windows without HADOOP_HOME: install pyarrow (`pip install pyarrow`) "
+                "or set HADOOP_HOME with bin/winutils.exe (see Hadoop WindowsProblems wiki)."
+            ) from exc
+        df.toPandas().to_parquet(filepath, index=False, engine="pyarrow")
+    else:
+        df.write.mode("overwrite").parquet(filepath)
 
 
 def process_silver_source_all_snapshots(
@@ -209,5 +235,5 @@ def process_silver_source_all_snapshots(
         df = cleaner(df)
         partition_name = f"silver_{source_name}_{snapshot_date_str.replace('-', '_')}.parquet"
         filepath = os.path.join(silver_dir, partition_name)
-        df.write.mode("overwrite").parquet(filepath)
+        _write_silver_parquet(df, filepath)
         print(f"[silver:{source_name}] {snapshot_date_str} rows={row_count} -> {filepath}")
