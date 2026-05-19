@@ -1,15 +1,24 @@
 import os
 from pyspark.sql.functions import col, to_date, date_format, coalesce
 
-# --- Source registry: the ONLY place new raw sources are declared ---
-# NOTE the real filenames: attributes/financials are plural "features_",
-# clickstream is singular "feature_".
+# Declare all raw sources here
 SOURCE_CONFIG = {
     "clickstream": {"csv_path": "data/feature_clickstream.csv", "bronze_subdir": "clickstream"},
     "attributes": {"csv_path": "data/features_attributes.csv", "bronze_subdir": "attributes"},
     "financials": {"csv_path": "data/features_financials.csv", "bronze_subdir": "financials"},
     "loan_daily": {"csv_path": "data/lms_loan_daily.csv", "bronze_subdir": "loan_daily"},
 }
+
+
+def _normalize_us_date_column(df, column_name):
+    """M/d/yyyy (raw LMS) -> ISO yyyy-MM-dd string for downstream DateType casts."""
+    return df.withColumn(
+        column_name,
+        coalesce(
+            date_format(to_date(col(column_name), "M/d/yyyy"), "yyyy-MM-dd"),
+            col(column_name),
+        ),
+    )
 
 
 def process_bronze_source_all_snapshots(
@@ -29,13 +38,9 @@ def process_bronze_source_all_snapshots(
     df = spark.read.csv(csv_file_path, header=True, inferSchema=False)
     # Raw CSVs use M/d/yyyy ("1/1/2023"); pipeline downstream expects ISO yyyy-MM-dd.
     # Fallback to original string if a row doesn't match the M/d/yyyy pattern.
-    df = df.withColumn(
-        "snapshot_date",
-        coalesce(
-            date_format(to_date(col("snapshot_date"), "M/d/yyyy"), "yyyy-MM-dd"),
-            col("snapshot_date"),
-        ),
-    )
+    df = _normalize_us_date_column(df, "snapshot_date")
+    if "loan_start_date" in df.columns:
+        df = _normalize_us_date_column(df, "loan_start_date")
     df.cache()
     try:
         # Warm cache once so subsequent per-month work reuses scanned partitions.

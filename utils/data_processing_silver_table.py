@@ -11,6 +11,7 @@ from pyspark.sql.functions import (
     datediff,
     coalesce,
     lit,
+    to_date,
 )
 from pyspark.sql.types import (
     StringType,
@@ -138,12 +139,20 @@ def clean_financials(df):
     return df
 
 
+def _parse_us_or_iso_date(column_name):
+    """Bronze may be M/d/yyyy or ISO yyyy-MM-dd; parse before DateType cast."""
+    parsed = coalesce(
+        to_date(col(column_name), "M/d/yyyy"),
+        to_date(col(column_name), "yyyy-MM-dd"),
+    )
+    return parsed.cast(DateType())
+
+
 def clean_loan_daily(df):
     """Implement type map and calculate mob/dpd."""
     column_type_map = {
         "loan_id": StringType(),
         "Customer_ID": StringType(),
-        "loan_start_date": DateType(),
         "tenure": IntegerType(),
         "installment_num": IntegerType(),
         "loan_amt": FloatType(),
@@ -151,10 +160,11 @@ def clean_loan_daily(df):
         "paid_amt": FloatType(),
         "overdue_amt": FloatType(),
         "balance": FloatType(),
-        "snapshot_date": DateType(),
     }
     for c, t in column_type_map.items():
         df = df.withColumn(c, col(c).cast(t))
+    df = df.withColumn("loan_start_date", _parse_us_or_iso_date("loan_start_date"))
+    df = df.withColumn("snapshot_date", _parse_us_or_iso_date("snapshot_date"))
 
     df = df.withColumn("mob", col("installment_num").cast(IntegerType()))
     df = df.withColumn(
