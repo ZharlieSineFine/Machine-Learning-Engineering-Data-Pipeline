@@ -1,0 +1,10 @@
+.git
+__pycache__/
+*.pyc
+datamart/
+.venv/
+venv/
+*.md
+Assignment 1.pdf
+*.code-workspace
+eda.ipynb

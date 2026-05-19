@@ -1,5 +1,5 @@
 import os
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, to_date, date_format, coalesce
 
 # --- Source registry: the ONLY place new raw sources are declared ---
 # NOTE the real filenames: attributes/financials are plural "features_",
@@ -27,6 +27,15 @@ def process_bronze_source_all_snapshots(
     os.makedirs(bronze_dir, exist_ok=True)
 
     df = spark.read.csv(csv_file_path, header=True, inferSchema=False)
+    # Raw CSVs use M/d/yyyy ("1/1/2023"); pipeline downstream expects ISO yyyy-MM-dd.
+    # Fallback to original string if a row doesn't match the M/d/yyyy pattern.
+    df = df.withColumn(
+        "snapshot_date",
+        coalesce(
+            date_format(to_date(col("snapshot_date"), "M/d/yyyy"), "yyyy-MM-dd"),
+            col("snapshot_date"),
+        ),
+    )
     df.cache()
     try:
         # Warm cache once so subsequent per-month work reuses scanned partitions.

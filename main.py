@@ -10,6 +10,8 @@ import utils.data_processing_silver_table as silver
 spark = (
     pyspark.sql.SparkSession.builder.appName("dev").master("local[*]").getOrCreate()
 )
+
+spark.conf.set("spark.sql.ansi.enabled", "false")
 spark.sparkContext.setLogLevel("ERROR")
 
 

@@ -1,0 +1,13 @@
+# `docker-compose build`  then  `docker-compose up`  ->  http://localhost:8888/lab
+version: "3.9"
+
+services:
+  pipeline:
+    build: .
+    image: mle-assignment1
+    container_name: mle-assignment1
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app          # CRITICAL: code + data/ in, datamart/ back out to host
+    working_dir: /app
