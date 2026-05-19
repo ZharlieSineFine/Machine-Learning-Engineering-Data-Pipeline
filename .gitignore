@@ -221,6 +221,9 @@ __marimo__/
 # Pipeline outputs
 datamart/
 
+# Submission pointer (local repo URL; not tracked)
+Readme.txt
+
 # Course materials
 Assignment 1.pdf
 
