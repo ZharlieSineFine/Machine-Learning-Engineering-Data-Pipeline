@@ -4,3 +4,7 @@ pyspark==3.5.5
 pandas==2.2.3
 # Parquet engine for the Windows silver fallback
 pyarrow>=14.0.0
+# ML pipeline (Assignment 2): training / inference / monitoring
+scikit-learn>=1.3
+xgboost>=2.0
+matplotlib>=3.7
