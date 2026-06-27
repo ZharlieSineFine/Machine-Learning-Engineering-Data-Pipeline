@@ -31,6 +31,12 @@ NUMERIC_IMPUTE = [
     "Amount_invested_monthly",
     "Monthly_Balance",
     "credit_history_age_months",
+    # Assignment 2 engineered ratios (created in _engineer_features; validated in eda.ipynb Block 9)
+    "debt_to_income",
+    "emi_to_salary",
+    "balance_to_debt",
+    "inq_per_loan",
+    "log_annual_income",
 ] + list(COUNT_CAPS)
 ZERO_IMPUTE = [
     f"{c}_{s}"
@@ -267,6 +273,30 @@ def _engineer_features(df):
             f"loan_{slug}", F.array_contains(col("_tla"), t).cast(IntegerType())
         )
     df = df.drop("Type_of_Loan", "_tl", "_tla")
+
+    # Assignment 2 engineered ratios (validated in eda.ipynb Block 9). Row-wise,
+    # application-time transforms -> no leakage; +1 denominator guards avoid div-by-zero;
+    # residual nulls are median-filled in _impute (added to NUMERIC_IMPUTE).
+    df = df.withColumn(
+        "debt_to_income",
+        (col("Outstanding_Debt") / (col("Annual_Income") + F.lit(1.0))).cast(DoubleType()),
+    )
+    df = df.withColumn(
+        "emi_to_salary",
+        (col("Total_EMI_per_month") / (col("Monthly_Inhand_Salary") + F.lit(1.0))).cast(DoubleType()),
+    )
+    df = df.withColumn(
+        "balance_to_debt",
+        ((col("Monthly_Balance") + F.lit(1.0)) / (col("Outstanding_Debt") + F.lit(1.0))).cast(DoubleType()),
+    )
+    df = df.withColumn(
+        "inq_per_loan",
+        (col("Num_Credit_Inquiries") / (col("Num_of_Loan") + F.lit(1.0))).cast(DoubleType()),
+    )
+    df = df.withColumn(
+        "log_annual_income",
+        F.log(F.greatest(col("Annual_Income"), F.lit(0.0)) + F.lit(1.0)).cast(DoubleType()),
+    )
     return df
 
 
