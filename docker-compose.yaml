@@ -1,13 +1,62 @@
-# `docker-compose build`  then  `docker-compose up`  ->  http://localhost:8888/lab
-version: "3.9"
+# Airflow stack for the Assignment 2 ML pipeline.
+#   docker compose build
+#   docker compose up           ->  http://localhost:8080  (login: admin / admin)
+# Then trigger the `ml_pipeline` DAG.
+#
+# SequentialExecutor + bundled SQLite keeps the stack to a single image with no
+# extra database service (the DAG is a linear chain, so no parallelism needed).
+
+x-airflow-common: &airflow-common
+  build: .
+  environment:
+    AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+    AIRFLOW__CORE__FERNET_KEY: "PAqBeGJLJTYFzVkOGHWIYXdLO7XdXz5yTdxAGJe9ezM="
+    AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+  volumes:
+    - airflow_data:/opt/airflow
+    - ./dags:/opt/airflow/dags
+    - ./scripts:/opt/airflow/scripts
+    - ./utils:/opt/airflow/utils
+    - ./data:/opt/airflow/data
+    - ./datamart:/opt/airflow/datamart
+    - ./model_bank:/opt/airflow/model_bank
 
 services:
-  pipeline:
-    build: .
-    image: mle-assignment1
-    container_name: mle-assignment1
+  fix-permissions:
+    <<: *airflow-common
+    user: "0:0"
+    entrypoint: >
+      /bin/bash -c "mkdir -p /opt/airflow/datamart /opt/airflow/model_bank /opt/airflow/logs &&
+      chmod -R a+rwX /opt/airflow/datamart /opt/airflow/model_bank /opt/airflow/logs"
+
+  airflow-init:
+    <<: *airflow-common
+    depends_on:
+      fix-permissions:
+        condition: service_completed_successfully
+    entrypoint: >
+      /bin/bash -c "airflow db init &&
+      airflow users create --username admin --password admin
+      --firstname Admin --lastname User --role Admin --email admin@example.com || true"
+
+  airflow-webserver:
+    <<: *airflow-common
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     ports:
-      - "8888:8888"
-    volumes:
-      - .:/app          # CRITICAL: code + data/ in, datamart/ back out to host
-    working_dir: /app
+      - "8080:8080"
+    command: webserver
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    command: scheduler
+    restart: unless-stopped
+
+volumes:
+  airflow_data:

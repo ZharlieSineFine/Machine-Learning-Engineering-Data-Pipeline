@@ -55,7 +55,12 @@ def main(snapshotdate, modelname):
     proba = model.predict_proba(scaler.transform(imputer.transform(X)))[:, 1]
 
     out = pdf[["Customer_ID", "snapshot_date"]].copy()
-    out["snapshot_date"] = pd.to_datetime(out["snapshot_date"])
+    # Store snapshot_date as a date (date32), NOT a pandas datetime64[ns]. pandas/pyarrow
+    # would otherwise write TIMESTAMP(NANOS), which Spark (model_monitor) cannot read
+    # ("Illegal Parquet type INT64 TIMESTAMP(NANOS)"). date32 also matches the gold label
+    # store's DateType, so the monitor join on (Customer_ID, snapshot_date) still works.
+    ts = pd.to_datetime(out["snapshot_date"])
+    out["snapshot_date"] = ts.dt.date
     out["model_name"] = modelname
     out["model_predictions"] = proba
 
@@ -65,7 +70,7 @@ def main(snapshotdate, modelname):
 
     # One parquet partition per scored month (small data -> pandas/pyarrow write,
     # robust on both Windows and Docker; read back via recursiveFileLookup).
-    out["_m"] = out["snapshot_date"].dt.strftime("%Y-%m-%d")
+    out["_m"] = ts.dt.strftime("%Y-%m-%d")  # use parsed datetime; snapshot_date is now date
     for m in sorted(out["_m"].unique()):
         part = out[out["_m"] == m].drop(columns="_m")
         fpath = os.path.join(gold_dir, f"{stem}_predictions_{m.replace('-', '_')}.parquet")
