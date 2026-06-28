@@ -1,4 +1,4 @@
-# Machine Learning Engineering - Data Pipeline (Assignment 2)
+# Machine Learning Engineering - Meddalion Pipeline + Airflow DAG
 
 End-to-end PySpark + Airflow pipeline for **credit default prediction** at a digital lender. Raw LMS and feature CSVs are ingested into a **medallion datamart** (bronze, silver, gold), then a model is trained, used to score every monthly cohort, and monitored over time. The whole lifecycle runs as a single Apache Airflow DAG (`ml_pipeline`).
 
@@ -21,7 +21,7 @@ dep_check -> bronze -> silver -> gold_label -> gold_feature
 | Model inference | `scripts/model_inference.py` | Per-month predictions under `datamart/gold/model_predictions/` |
 | Model monitor | `scripts/model_monitor.py` | Per-month metrics table + PNG charts under `datamart/gold/model_monitoring/` |
 
-The feature store holds one row per `(Customer_ID, snapshot_date)`: application-time attributes and financials, clickstream aggregates up to `loan_start_date`, categorical encodings, missingness flags, age validity, five engineered ratios, and winsor caps (p99) plus median imputation fit only on `snapshot_date < train_cutoff`. The last two cohort months are held out for out-of-time (OOT) evaluation. Layer-by-layer design notes live in `bronze_layer.md`, `silver_layer.md`, and `gold_layer.md`.
+The feature store holds one row per `(Customer_ID, snapshot_date)`: application-time attributes and financials, clickstream aggregates up to `loan_start_date`, categorical encodings, missingness flags, age validity, five engineered ratios, and winsor caps (p99) plus median imputation fit only on `snapshot_date < train_cutoff`. The last two cohort months are held out for out-of-time (OOT) evaluation.
 
 ## Repository layout
 
