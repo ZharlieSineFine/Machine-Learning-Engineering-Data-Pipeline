@@ -6,21 +6,18 @@ validation AUC, audits it out-of-time (OOT), and saves a self-contained
 artefact (model + fitted preprocessing + feature list + metrics) to the model
 bank for the inference step to load.
 
-Run inside the pipeline container, from /app (the repo root):
+Run from the repo root (inside the container, /opt/airflow):
+    python3 scripts/model_train.py --modelname credit_model.pkl
 
-    python scripts/model_train.py --modelname credit_model.pkl
-
-Design notes
-------------
-* OOT = the last ``--oot_months`` months. This MUST equal the feature store's
-  ``oot_months`` (gold winsor/impute statistics were fit on
-  ``snapshot_date < train_cutoff``). Using a different boundary would let those
-  statistics "see" data that is future relative to the model's training window
-  -> train/test contamination.
-* The train/validation split is *temporal*: the most recent non-OOT months
-  become validation, so validation never contains the future.
-* The artefact carries the fitted imputer + scaler and the exact ordered
-  feature list, so inference applies the identical transform with no re-fitting.
+A few things that matter here:
+* OOT is the last `--oot_months` months, and it has to match the feature
+  store's `oot_months`. Gold fits its winsor/impute stats on
+  `snapshot_date < train_cutoff`; a different boundary would let those stats
+  see data from the model's future, i.e. train/test contamination.
+* The train/validation split is temporal: the most recent non-OOT months are
+  the validation set, so validation never contains the future.
+* The artefact carries the fitted imputer, scaler, and exact feature order, so
+  inference replays the same transform without re-fitting anything.
 """
 
 import argparse

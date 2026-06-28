@@ -106,7 +106,7 @@ def main(modelname):
 
     x = pd.to_datetime(monitor["month"])
 
-    # Chart 1 - performance over time (AUC + Gini).
+    # Chart 1: performance over time (AUC + Gini).
     fig, ax = plt.subplots(figsize=(11, 4))
     ax.plot(x, monitor["auc"], marker="o", label="AUC")
     ax.plot(x, monitor["gini"], marker="s", label="Gini")
@@ -122,7 +122,7 @@ def main(modelname):
     fig.savefig(os.path.join(charts_dir, f"{stem}_auc_over_time.png"), dpi=120)
     plt.close(fig)
 
-    # Chart 2 - calibration / stability: actual default rate vs mean predicted.
+    # Chart 2: actual default rate vs mean predicted prob (calibration check).
     fig, ax = plt.subplots(figsize=(11, 4))
     ax.plot(x, monitor["default_rate"], marker="o", label="actual default rate")
     ax.plot(x, monitor["mean_pred"], marker="s", label="mean predicted prob")
@@ -135,7 +135,7 @@ def main(modelname):
     fig.savefig(os.path.join(charts_dir, f"{stem}_calibration_over_time.png"), dpi=120)
     plt.close(fig)
 
-    # Chart 3 - prediction-distribution stability: earliest vs latest month.
+    # Chart 3: prediction distribution, earliest vs latest month.
     months = sorted(joined["month"].unique())
     first_m, last_m = months[0], months[-1]
     fig, ax = plt.subplots(figsize=(8, 4))
