@@ -7,12 +7,16 @@ USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Java 17 for PySpark; procps for `ps` (Spark needs it); bash for Spark scripts.
+# The openjdk package installs to an arch-suffixed dir (amd64/arm64), which
+# differs between Intel and Apple Silicon builds, so resolve it dynamically
+# via a stable `default-java` symlink instead of hardcoding one arch.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends openjdk-17-jdk-headless procps bash && \
     rm -rf /var/lib/apt/lists/* && \
-    ln -sf /bin/bash /bin/sh
+    ln -sf /bin/bash /bin/sh && \
+    ln -sfT "$(dirname $(dirname $(readlink -f /usr/bin/java)))" /usr/lib/jvm/default-java
 
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV JAVA_HOME=/usr/lib/jvm/default-java
 ENV PATH=$PATH:$JAVA_HOME/bin
 
 # Pipeline Python deps (Airflow comes from the base image).
